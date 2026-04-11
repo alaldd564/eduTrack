@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+*.db
+alembic.ini
+.env.*
+.DS_Store
+render.yaml
+node_modules/
