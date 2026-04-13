@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useEduData } from '@/lib/edu-data-context'
+import { fetchAttentionRequiredStudents } from '@/lib/api-client'
 import {
   Users,
   ClipboardList,
@@ -11,9 +12,29 @@ import {
   ArrowUpRight,
 } from 'lucide-react'
 import { ProgressChart } from '@/components/charts/progress-chart'
+import { useEffect, useState } from 'react'
 
 export function InstructorDashboard() {
   const { students, assignments, submissions } = useEduData()
+  const [attentionStudents, setAttentionStudents] = useState<typeof students>([])
+  const [isLoadingAttention, setIsLoadingAttention] = useState(false)
+
+  useEffect(() => {
+    const loadAttentionStudents = async () => {
+      setIsLoadingAttention(true)
+      try {
+        const result = await fetchAttentionRequiredStudents()
+        setAttentionStudents(result)
+      } catch (error) {
+        console.error('Failed to fetch attention students:', error)
+        setAttentionStudents([])
+      } finally {
+        setIsLoadingAttention(false)
+      }
+    }
+
+    loadAttentionStudents()
+  }, [students])
 
   if (students.length === 0 || assignments.length === 0) {
     return null
@@ -27,7 +48,6 @@ export function InstructorDashboard() {
   const submissionRate = Math.round(
     (submissions.length / (students.length * assignments.length)) * 100
   )
-  const lowPerformers = students.filter((s) => s.overallUnderstanding < 60)
 
   const stats = [
     {
@@ -52,11 +72,11 @@ export function InstructorDashboard() {
       trend: 'up',
     },
     {
-      label: '주의 필요',
-      value: lowPerformers.length,
+      label: '주의 필요 (주간 미변경)',
+      value: attentionStudents.length,
       icon: AlertTriangle,
-      change: '-1',
-      trend: 'down',
+      change: attentionStudents.length === 0 ? '양호' : '주의',
+      trend: attentionStudents.length === 0 ? 'down' : 'up',
     },
   ]
 
@@ -166,13 +186,15 @@ export function InstructorDashboard() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 font-mono text-sm font-medium uppercase tracking-wider text-warning">
             <AlertTriangle className="h-4 w-4" />
-            Attention Required
+            주의 필요 (일주일 미변경 학생)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {lowPerformers.length > 0 ? (
+          {isLoadingAttention ? (
+            <p className="py-4 text-center text-muted-foreground">로딩 중...</p>
+          ) : attentionStudents.length > 0 ? (
             <div className="space-y-3">
-              {lowPerformers.map((student) => (
+              {attentionStudents.map((student) => (
                 <div
                   key={student.id}
                   className="flex items-center justify-between rounded-xl border border-warning/20 bg-background/50 p-4 backdrop-blur-sm transition-all hover:border-warning/40"
@@ -186,17 +208,14 @@ export function InstructorDashboard() {
                         {student.name}
                       </p>
                       <p className="font-mono text-xs text-muted-foreground">
-                        {student.grade}
+                        {student.grade} · 진도 {student.overallProgress}% · 이해도 {student.overallUnderstanding}%
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono text-2xl font-bold text-warning">
-                      {student.overallUnderstanding}%
-                    </p>
-                    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Understanding
-                    </p>
+                    <span className="rounded-full bg-warning/20 px-2.5 py-1 font-mono text-xs font-semibold text-warning">
+                      미변경
+                    </span>
                   </div>
                 </div>
               ))}
@@ -215,8 +234,4 @@ export function InstructorDashboard() {
       </Card>
     </div>
   )
-}
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ')
 }

@@ -57,6 +57,7 @@ export function ProgramLibrary() {
 
   const handleUpload = async () => {
     if (!uploadSubjectId || !uploadTitle.trim() || !uploadFile) {
+      alert('제목, 주제, 파일을 모두 선택해주세요.')
       return
     }
 
@@ -70,6 +71,11 @@ export function ProgramLibrary() {
       await refreshMaterials()
       setUploadTitle('')
       setUploadFile(null)
+      alert('파일이 성공적으로 업로드되었습니다.')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '파일 업로드에 실패했습니다.'
+      console.error('Upload error:', error)
+      alert(`업로드 실패: ${errorMessage}`)
     } finally {
       setIsUploading(false)
     }

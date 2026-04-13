@@ -1,5 +1,6 @@
 ﻿from pathlib import Path
 from uuid import uuid4
+from datetime import datetime, timedelta
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,6 +29,8 @@ from app.schemas import (
     DiscussionReplyCreate,
     DiscussionReplyOut,
     MaterialOut,
+    AIRecommendationRequest,
+    AIRecommendationOut,
     ProfileResponse,
     ProfileUpdate,
     LinkInstructorRequest,
@@ -40,6 +43,7 @@ from app.schemas import (
 )
 from app.seed_data import CURRICULUM_POOL, SUBJECTS, UNDERSTANDING_HISTORY, seed_if_needed
 from app.security import generate_instructor_code, hash_password, verify_password
+from app.ai_recommendation import get_ai_recommendation
 
 app = FastAPI(title="edu-backend", version="1.0.0")
 UPLOAD_DIR = Path("uploads")
@@ -611,6 +615,9 @@ def get_students(
         statement = statement.where(
             func.lower(Student.name).like(search_lower)
             | Student.name.like(search_raw)
+            | func.lower(Student.email).like(search_lower)
+            | Student.email.like(search_raw)
+            | func.lower(Student.grade).like(search_lower)
         )
     rows = db.scalars(statement).all()
     return [StudentOut(**student_to_dict(row)) for row in rows]
@@ -654,6 +661,8 @@ def update_student(
         raise HTTPException(status_code=404, detail="Student not found")
 
     data = payload.model_dump(exclude_unset=True)
+    today = datetime.now().strftime("%Y-%m-%d")
+    
     if "name" in data:
         student.name = data["name"]
     if "email" in data:
@@ -664,8 +673,10 @@ def update_student(
         student.enrolled_date = data["enrolledDate"]
     if "overallProgress" in data:
         student.overall_progress = data["overallProgress"]
+        student.last_progress_update = today
     if "overallUnderstanding" in data:
         student.overall_understanding = data["overallUnderstanding"]
+        student.last_understanding_update = today
     if "lastActivity" in data:
         student.last_activity = data["lastActivity"]
 
@@ -857,3 +868,81 @@ def get_curriculum_pool(_user: dict = Depends(get_current_user)):
 @app.get("/api/subjects")
 def get_subjects(_user: dict = Depends(get_current_user)):
     return SUBJECTS
+
+
+@app.post("/api/ai-recommendation", response_model=AIRecommendationOut)
+def get_ai_recommendation_for_student(
+    payload: AIRecommendationRequest,
+    _user: dict = Depends(require_instructor),
+    db: Session = Depends(get_db),
+):
+    """교강사용: 학생의 맞춤형 AI 학습 추천 생성"""
+    student = db.get(Student, payload.studentId)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    # 약점 단원 조회 (이해도 70% 미만)
+    weak_chapters = []
+    for subject in SUBJECTS:
+        for chapter in subject.get("chapters", []):
+            if chapter.get("understanding", 0) < 70:
+                weak_chapters.append({
+                    "name": chapter.get("name", ""),
+                    "understanding": chapter.get("understanding", 0),
+                })
+
+    # 최근 과제 제출 조회
+    recent_submissions = db.scalars(
+        select(Submission)
+        .where(Submission.student_id == student.id)
+        .order_by(Submission.submitted_at.desc())
+        .limit(5)
+    ).all()
+
+    submissions_for_ai = [
+        {
+            "title": (lambda aid: next((a.title for a in SUBJECTS[0].get("assignments", []) if a.get("id") == aid), "과제"))
+            (sub.assignment_id),
+            "score": sub.score,
+        }
+        for sub in recent_submissions
+    ]
+
+    # Ollama를 통한 AI 추천 생성
+    recommendation = get_ai_recommendation(
+        student_name=student.name,
+        overall_progress=student.overall_progress,
+        overall_understanding=student.overall_understanding,
+        weak_chapters=weak_chapters,
+        recent_submissions=submissions_for_ai,
+    )
+
+    return AIRecommendationOut(
+        studentName=student.name,
+        recommendation=recommendation or "현재 Ollama 서버를 사용할 수 없습니다. Ollama를 설치하고 실행해주세요.",
+        overallProgress=student.overall_progress,
+        overallUnderstanding=student.overall_understanding,
+    )
+
+
+@app.get("/api/students/attention-required", response_model=list[StudentOut])
+def get_attention_required_students(
+    _user: dict = Depends(require_instructor),
+    db: Session = Depends(get_db),
+):
+    """일주일 동안 진도율과 학습도가 변하지 않은 학생 조회"""
+    today = datetime.now()
+    week_ago = today - timedelta(days=7)
+    week_ago_str = week_ago.strftime("%Y-%m-%d")
+
+    # 진도율과 학습도가 모두 일주일 이상 변하지 않은 학생을 조회
+    rows = db.scalars(
+        select(Student).where(
+            (
+                (Student.last_progress_update.is_(None) | (Student.last_progress_update <= week_ago_str))
+                & (Student.last_understanding_update.is_(None) | (Student.last_understanding_update <= week_ago_str))
+            )
+        )
+    ).all()
+
+    return [StudentOut(**student_to_dict(row)) for row in rows]

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useEduData } from '@/lib/edu-data-context'
-import { Search, ChevronRight } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRole } from '@/lib/role-context'
 import type { Student } from '@/lib/types'
@@ -131,11 +131,30 @@ export function StudentList({ onViewDetail }: StudentListProps) {
                 value={form.email}
                 onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
               />
-              <Input
-                placeholder="학년"
+              <select
                 value={form.grade}
                 onChange={(e) => setForm((prev) => ({ ...prev, grade: e.target.value }))}
-              />
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">학년 선택</option>
+                <option value="유치원">유치원</option>
+                <option value="초등학교 1학년">초등학교 1학년</option>
+                <option value="초등학교 2학년">초등학교 2학년</option>
+                <option value="초등학교 3학년">초등학교 3학년</option>
+                <option value="초등학교 4학년">초등학교 4학년</option>
+                <option value="초등학교 5학년">초등학교 5학년</option>
+                <option value="초등학교 6학년">초등학교 6학년</option>
+                <option value="중학교 1학년">중학교 1학년</option>
+                <option value="중학교 2학년">중학교 2학년</option>
+                <option value="중학교 3학년">중학교 3학년</option>
+                <option value="고등학교 1학년">고등학교 1학년</option>
+                <option value="고등학교 2학년">고등학교 2학년</option>
+                <option value="고등학교 3학년">고등학교 3학년</option>
+                <option value="대학교 1학년">대학교 1학년</option>
+                <option value="대학교 2학년">대학교 2학년</option>
+                <option value="대학교 3학년">대학교 3학년</option>
+                <option value="대학교 4학년">대학교 4학년</option>
+              </select>
               <Input
                 placeholder="등록일"
                 value={form.enrolledDate}
@@ -209,9 +228,6 @@ export function StudentList({ onViewDetail }: StudentListProps) {
                     최근 활동
                   </th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">
-                    상세
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">
                     작업
                   </th>
                 </tr>
@@ -277,22 +293,13 @@ export function StudentList({ onViewDetail }: StudentListProps) {
                       {student.lastActivity}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewDetail(student.id)}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </td>
-                    <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEdit(student)}
+                          onClick={() => handleViewDetail(student.id)}
                         >
-                          수정
+                          자세히 보기
                         </Button>
                         <Button
                           variant="destructive"

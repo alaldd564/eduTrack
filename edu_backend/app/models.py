@@ -14,6 +14,8 @@ class Student(Base):
     overall_progress: Mapped[int] = mapped_column(Integer, nullable=False)
     overall_understanding: Mapped[int] = mapped_column(Integer, nullable=False)
     last_activity: Mapped[str] = mapped_column(String(20), nullable=False)
+    last_progress_update: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    last_understanding_update: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
 
 class Assignment(Base):

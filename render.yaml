@@ -1,48 +1,25 @@
-databases:
-  - name: edu-postgres
-    databaseName: edu
-    user: edu_user
-
 services:
   - type: web
     name: edu-backend
-    runtime: python
-    rootDir: edu_backend
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python -m alembic -c alembic.ini upgrade head && python -m uvicorn app.main:app --app-dir . --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
+    env: python
+    buildCommand: cd edu_backend && pip install -r requirements.txt
+    startCommand: cd edu_backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.14
       - key: DATABASE_URL
-        fromDatabase:
-          name: edu-postgres
-          property: connectionString
-      - key: AUTO_CREATE_TABLES
-        value: "false"
-      - key: SEED_ON_STARTUP
-        value: "false"
-      - key: CORS_ORIGINS
-        sync: false
-      - key: JWT_SECRET
-        sync: false
-      - key: JWT_EXPIRES_MINUTES
-        value: "120"
-      - key: INSTRUCTOR_USERNAME
-        sync: false
-      - key: INSTRUCTOR_PASSWORD
-        sync: false
-      - key: STUDENT_USERNAME
-        sync: false
-      - key: STUDENT_PASSWORD
-        sync: false
+        scope: service
+      - key: ALLOWED_ORIGINS
+        value: ""
 
-  - type: web
-    name: edu-frontend
-    runtime: node
-    rootDir: edu_frontend
-    plan: free
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
-    startCommand: corepack enable && pnpm start -- -H 0.0.0.0 -p $PORT
-    envVars:
-      - key: NEXT_PUBLIC_API_BASE_URL
-        sync: false
+  - type: pserv
+    name: edu-db
+    ipWhitelist: []
+    plan: starter
+    dbName: edu_db
+    user: edu_user
+
+envVars:
+  - key: ALLOWED_ORIGINS
+    value: https://your-project.vercel.app

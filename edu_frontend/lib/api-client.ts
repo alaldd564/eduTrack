@@ -527,3 +527,39 @@ export function setAuthToken(token: string | null): void {
 
   window.localStorage.setItem('edu-auth-token', token)
 }
+
+export async function fetchAIRecommendation(
+  studentId: string
+): Promise<{
+  studentName: string
+  recommendation: string | null
+  overallProgress: number
+  overallUnderstanding: number
+}> {
+  const response = await fetch(apiUrl('/api/ai-recommendation'), {
+    method: 'POST',
+    headers: withAuthHeaders({
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify({ studentId }),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, `Failed to fetch AI recommendation: ${response.status}`))
+  }
+
+  return response.json()
+}
+
+export async function fetchAttentionRequiredStudents(): Promise<Student[]> {
+  const response = await fetch(apiUrl('/api/students/attention-required'), {
+    cache: 'no-store',
+    headers: withAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch attention required students: ${response.status}`)
+  }
+
+  return response.json() as Promise<Student[]>
+}

@@ -196,12 +196,30 @@ function AuthScreen() {
                         onChange={(e) => setEmail(e.target.value)}
                         className="h-11"
                       />
-                      <Input
-                        placeholder="학년"
+                      <select
                         value={grade}
                         onChange={(e) => setGrade(e.target.value)}
-                        className="h-11"
-                      />
+                        className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="">학년 선택</option>
+                        <option value="유치원">유치원</option>
+                        <option value="초등학교 1학년">초등학교 1학년</option>
+                        <option value="초등학교 2학년">초등학교 2학년</option>
+                        <option value="초등학교 3학년">초등학교 3학년</option>
+                        <option value="초등학교 4학년">초등학교 4학년</option>
+                        <option value="초등학교 5학년">초등학교 5학년</option>
+                        <option value="초등학교 6학년">초등학교 6학년</option>
+                        <option value="중학교 1학년">중학교 1학년</option>
+                        <option value="중학교 2학년">중학교 2학년</option>
+                        <option value="중학교 3학년">중학교 3학년</option>
+                        <option value="고등학교 1학년">고등학교 1학년</option>
+                        <option value="고등학교 2학년">고등학교 2학년</option>
+                        <option value="고등학교 3학년">고등학교 3학년</option>
+                        <option value="대학교 1학년">대학교 1학년</option>
+                        <option value="대학교 2학년">대학교 2학년</option>
+                        <option value="대학교 3학년">대학교 3학년</option>
+                        <option value="대학교 4학년">대학교 4학년</option>
+                      </select>
                     </>
                   )}
                 </div>
@@ -233,7 +251,7 @@ function AuthScreen() {
 }
 
 function StudentLinkScreen() {
-  const { linkToInstructor, authLoading, authError } = useRole()
+  const { linkToInstructor, authLoading, authError, logout } = useRole()
   const [code, setCode] = useState('')
 
   const handleLink = async () => {
@@ -259,9 +277,14 @@ function StudentLinkScreen() {
             onChange={(e) => setCode(e.target.value)}
           />
           {authError && <p className="text-sm text-destructive">{authError}</p>}
-          <Button onClick={handleLink} disabled={authLoading} className="w-full">
-            연결하기
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleLink} disabled={authLoading} className="flex-1">
+              연결하기
+            </Button>
+            <Button onClick={logout} variant="outline" disabled={authLoading}>
+              돌아가기
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

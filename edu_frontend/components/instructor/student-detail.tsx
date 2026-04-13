@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button'
 import { useRole } from '@/lib/role-context'
 import { useEduData } from '@/lib/edu-data-context'
 import { generateRecommendations } from '@/lib/recommendation-engine'
+import { fetchAIRecommendation } from '@/lib/api-client'
 import { ProgressChart } from '@/components/charts/progress-chart'
 import { UnderstandingChart } from '@/components/charts/understanding-chart'
 import { SubjectChart } from '@/components/charts/subject-chart'
-import { ArrowLeft, Mail, Calendar, BookOpen } from 'lucide-react'
+import { ArrowLeft, Mail, Calendar, BookOpen, Sparkles, Loader } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react'
 
 interface StudentDetailProps {
   onBack: () => void
@@ -25,7 +27,28 @@ export function StudentDetail({ onBack }: StudentDetailProps) {
     getAssignmentById,
     getUnderstandingHistoryByStudent,
   } = useEduData()
+  const [aiRecommendation, setAiRecommendation] = useState<string | null>(null)
+  const [isLoadingAI, setIsLoadingAI] = useState(false)
   const student = students.find((s) => s.id === selectedStudentId)
+
+  useEffect(() => {
+    if (!student) return
+
+    const loadAIRecommendation = async () => {
+      setIsLoadingAI(true)
+      try {
+        const result = await fetchAIRecommendation(student.id)
+        setAiRecommendation(result.recommendation)
+      } catch (error) {
+        console.error('Failed to fetch AI recommendation:', error)
+        setAiRecommendation(null)
+      } finally {
+        setIsLoadingAI(false)
+      }
+    }
+
+    loadAIRecommendation()
+  }, [student])
 
   if (!student) {
     return (
@@ -128,6 +151,31 @@ export function StudentDetail({ onBack }: StudentDetailProps) {
           </CardContent>
         </Card>
       </div>
+
+      {aiRecommendation && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI 기반 맞춤형 학습 추천
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingAI ? (
+              <div className="flex items-center gap-2 py-8">
+                <Loader className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-muted-foreground">AI 추천을 생성 중입니다...</span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  {aiRecommendation}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

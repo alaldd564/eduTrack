@@ -28,6 +28,7 @@ export function StudentDashboard() {
     curriculumPool,
     getActivitiesByStudent,
     getUnderstandingHistoryByStudent,
+    getSubmissionsByStudent,
   } = useEduData()
   const student = students.find((s) => s.id === selectedStudentId) || students[0]
   const recommendations = generateRecommendations(subjects, curriculumPool, 3)
@@ -38,11 +39,23 @@ export function StudentDashboard() {
 
   const recentActivities = getActivitiesByStudent(student.id).slice(0, 4)
   const understandingHistory = getUnderstandingHistoryByStudent(student.id)
+  const submissions = getSubmissionsByStudent(student.id)
+  
+  // 활성 과목 수 (진도가 0이 아닌 과목)
+  const activeSubjects = subjects.filter((s) =>
+    s.chapters.some((ch) => ch.progress > 0)
+  ).length
+
+  // 완료된 목표 (점수 80점 이상의 과제 제출)
+  const completedGoals = submissions.filter((sub) => sub.score >= 80).length
+
+  // 총 공부 시간 (활동 개수 * 1시간으로 계산)
+  const studyHours = recentActivities.length
 
   const stats = [
     {
       label: 'Active Subjects',
-      value: subjects.length,
+      value: activeSubjects || subjects.length,
       icon: BookOpen,
       color: 'primary',
     },
@@ -54,13 +67,13 @@ export function StudentDashboard() {
     },
     {
       label: 'Study Time',
-      value: '12h',
+      value: `${studyHours}h`,
       icon: Clock,
       color: 'success',
     },
     {
       label: 'Goals Completed',
-      value: '8',
+      value: completedGoals,
       icon: Target,
       color: 'warning',
     },

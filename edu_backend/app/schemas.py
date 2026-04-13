@@ -190,3 +190,15 @@ class DiscussionReplyOut(BaseModel):
 
 class LinkInstructorRequest(BaseModel):
     instructorCode: str = Field(min_length=4, max_length=20)
+
+
+class AIRecommendationRequest(BaseModel):
+    studentId: str = Field(min_length=1, max_length=64)
+
+
+class AIRecommendationOut(BaseModel):
+    studentName: str
+    recommendation: str | None
+    overallProgress: int
+    overallUnderstanding: int
+
