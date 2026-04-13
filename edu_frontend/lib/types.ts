@@ -14,7 +14,20 @@ export interface Student {
 export interface Subject {
   id: string
   name: string
+  materials?: ProgramMaterial[]
   chapters: Chapter[]
+}
+
+export interface ProgramMaterial {
+  id: string
+  title: string
+  subjectId?: string
+  type?: 'pdf' | 'word' | 'link'
+  updatedAt?: string
+  originalFilename?: string
+  storedFilename?: string
+  uploadedByUserId?: number
+  createdAt?: string
 }
 
 // 단원 정보
@@ -43,7 +56,30 @@ export interface Submission {
   assignmentId: string
   score: number
   submittedAt: string
+  answerText?: string | null
+  attachmentName?: string | null
+  attachmentPath?: string | null
   feedback?: string
+}
+
+export interface DiscussionPost {
+  id: string
+  subjectId?: string | null
+  assignmentId?: string | null
+  authorUserId: number
+  authorName: string
+  title: string
+  content: string
+  createdAt: string
+}
+
+export interface DiscussionReply {
+  id: string
+  postId: string
+  authorUserId: number
+  authorName: string
+  content: string
+  createdAt: string
 }
 
 // 추천 커리큘럼

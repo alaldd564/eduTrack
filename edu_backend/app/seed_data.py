@@ -6,6 +6,20 @@ SUBJECTS = [
     {
         "id": "subject-1",
         "name": "수학",
+        "materials": [
+            {
+                "id": "mat-math-1",
+                "title": "미분 개념 강의노트",
+                "type": "pdf",
+                "updatedAt": "2026-04-10",
+            },
+            {
+                "id": "mat-math-2",
+                "title": "삼각함수 예제 모음",
+                "type": "word",
+                "updatedAt": "2026-04-11",
+            },
+        ],
         "chapters": [
             {"id": "math-1", "name": "지수와 로그", "progress": 100, "understanding": 85},
             {"id": "math-2", "name": "삼각함수", "progress": 80, "understanding": 62},
@@ -17,6 +31,14 @@ SUBJECTS = [
     {
         "id": "subject-2",
         "name": "영어",
+        "materials": [
+            {
+                "id": "mat-eng-1",
+                "title": "독해 전략 요약본",
+                "type": "pdf",
+                "updatedAt": "2026-04-09",
+            }
+        ],
         "chapters": [
             {"id": "eng-1", "name": "문법 기초", "progress": 100, "understanding": 90},
             {"id": "eng-2", "name": "독해 전략", "progress": 90, "understanding": 78},
@@ -27,6 +49,14 @@ SUBJECTS = [
     {
         "id": "subject-3",
         "name": "과학",
+        "materials": [
+            {
+                "id": "mat-sci-1",
+                "title": "역학 실험 자료",
+                "type": "pdf",
+                "updatedAt": "2026-04-08",
+            }
+        ],
         "chapters": [
             {"id": "sci-1", "name": "역학", "progress": 95, "understanding": 88},
             {"id": "sci-2", "name": "열역학", "progress": 75, "understanding": 68},
@@ -37,6 +67,14 @@ SUBJECTS = [
     {
         "id": "subject-4",
         "name": "국어",
+        "materials": [
+            {
+                "id": "mat-kor-1",
+                "title": "비문학 독해 문제집",
+                "type": "word",
+                "updatedAt": "2026-04-11",
+            }
+        ],
         "chapters": [
             {"id": "kor-1", "name": "현대 문학", "progress": 100, "understanding": 92},
             {"id": "kor-2", "name": "고전 문학", "progress": 85, "understanding": 75},

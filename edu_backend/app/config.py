@@ -1,8 +1,20 @@
 import os
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 
 def get_database_url() -> str:
     raw = os.getenv("DATABASE_URL", "sqlite:///./edu.db")
+
+    if raw.startswith("sqlite:///"):
+        database_path = raw.removeprefix("sqlite:///")
+        if database_path == ":memory:" or database_path.startswith("/") or (len(database_path) >= 2 and database_path[1] == ":"):
+            return raw
+
+        resolved_path = (BASE_DIR / database_path).resolve().as_posix()
+        return f"sqlite:///{resolved_path}"
 
     # Render often provides postgres:// URLs; SQLAlchemy with psycopg needs postgresql+psycopg://
     if raw.startswith("postgres://"):

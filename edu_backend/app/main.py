@@ -1,6 +1,7 @@
-﻿from uuid import uuid4
+﻿from pathlib import Path
+from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Response
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -13,7 +14,7 @@ from app.auth import (
     require_student,
 )
 from app.config import get_cors_origins, should_auto_create_tables, should_seed_on_startup
-from app.models import Assignment, LearningActivity, Student, Submission, User
+from app.models import Assignment, CourseMaterial, DiscussionPost, DiscussionReply, LearningActivity, Student, Submission, User
 from app.schemas import (
     AssignmentCreate,
     AssignmentOut,
@@ -22,15 +23,27 @@ from app.schemas import (
     AuthMeResponse,
     AuthSignupRequest,
     AuthTokenResponse,
+    DiscussionPostCreate,
+    DiscussionPostOut,
+    DiscussionReplyCreate,
+    DiscussionReplyOut,
+    MaterialOut,
+    ProfileResponse,
+    ProfileUpdate,
     LinkInstructorRequest,
     StudentCreate,
     StudentOut,
     StudentUpdate,
+    SubmissionCreate,
+    SubmissionOut,
+    SubmissionUpdate,
 )
 from app.seed_data import CURRICULUM_POOL, SUBJECTS, UNDERSTANDING_HISTORY, seed_if_needed
 from app.security import generate_instructor_code, hash_password, verify_password
 
 app = FastAPI(title="edu-backend", version="1.0.0")
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware,
@@ -82,7 +95,46 @@ def submission_to_dict(submission: Submission) -> dict:
         "assignmentId": submission.assignment_id,
         "score": submission.score,
         "submittedAt": submission.submitted_at,
+        "answerText": submission.answer_text,
+        "attachmentName": submission.attachment_name,
+        "attachmentPath": submission.attachment_path,
         "feedback": submission.feedback,
+    }
+
+
+def material_to_dict(material: CourseMaterial) -> dict:
+    return {
+        "id": material.id,
+        "subjectId": material.subject_id,
+        "title": material.title,
+        "originalFilename": material.original_filename,
+        "storedFilename": material.stored_filename,
+        "uploadedByUserId": material.uploaded_by_user_id,
+        "createdAt": material.created_at,
+    }
+
+
+def post_to_dict(post: DiscussionPost) -> dict:
+    return {
+        "id": post.id,
+        "subjectId": post.subject_id,
+        "assignmentId": post.assignment_id,
+        "authorUserId": post.author_user_id,
+        "authorName": post.author_name,
+        "title": post.title,
+        "content": post.content,
+        "createdAt": post.created_at,
+    }
+
+
+def reply_to_dict(reply: DiscussionReply) -> dict:
+    return {
+        "id": reply.id,
+        "postId": reply.post_id,
+        "authorUserId": reply.author_user_id,
+        "authorName": reply.author_name,
+        "content": reply.content,
+        "createdAt": reply.created_at,
     }
 
 
@@ -102,6 +154,7 @@ def auth_response_from_user(user: User) -> AuthTokenResponse:
         user_id=user.id,
         username=user.username,
         role=user.role,  # type: ignore[arg-type]
+        display_name=user.display_name,
         student_id=user.student_id,
         instructor_code=user.instructor_code,
         linked_instructor_code=user.linked_instructor_code,
@@ -110,14 +163,18 @@ def auth_response_from_user(user: User) -> AuthTokenResponse:
         accessToken=token,
         username=user.username,
         role=user.role,
+        displayName=user.display_name,
         studentId=user.student_id,
         instructorCode=user.instructor_code,
         linkedInstructorCode=user.linked_instructor_code,
     )
 
+def ensure_student_linked(user: dict, db: Session) -> None:
+    if user["role"] != "student":
+        return
 
-def ensure_student_linked(user: dict) -> None:
-    if user["role"] == "student" and not user.get("linkedInstructorCode"):
+    me_user = db.get(User, user["id"])
+    if not me_user or not me_user.linked_instructor_code:
         raise HTTPException(status_code=403, detail="Instructor link required")
 
 
@@ -174,6 +231,9 @@ def signup(payload: AuthSignupRequest, db: Session = Depends(get_db)):
             username=username,
             password_hash=hash_password(payload.password),
             role="student",
+            display_name=display_name,
+            bio=None,
+            phone=None,
             student_id=student.id,
             linked_instructor_code=None,
             instructor_code=None,
@@ -194,6 +254,9 @@ def signup(payload: AuthSignupRequest, db: Session = Depends(get_db)):
             username=username,
             password_hash=hash_password(payload.password),
             role="instructor",
+            display_name=(payload.name or username).strip() or username,
+            bio=None,
+            phone=None,
             student_id=None,
             instructor_code=instructor_code,
             linked_instructor_code=None,
@@ -223,10 +286,68 @@ def me(user: dict = Depends(get_current_user)):
     return AuthMeResponse(
         username=user["username"],
         role=user["role"],
+        displayName=user.get("displayName"),
         studentId=user.get("studentId"),
         instructorCode=user.get("instructorCode"),
         linkedInstructorCode=user.get("linkedInstructorCode"),
     )
+
+
+@app.get("/api/profile", response_model=ProfileResponse)
+def get_profile(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    me_user = db.get(User, user["id"])
+    if not me_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    student = db.get(Student, me_user.student_id) if me_user.student_id else None
+    return ProfileResponse(
+        username=me_user.username,
+        role=me_user.role,
+        displayName=me_user.display_name,
+        bio=me_user.bio,
+        phone=me_user.phone,
+        studentId=me_user.student_id,
+        instructorCode=me_user.instructor_code,
+        linkedInstructorCode=me_user.linked_instructor_code,
+        name=student.name if student else None,
+        email=student.email if student else None,
+        grade=student.grade if student else None,
+    )
+
+
+@app.put("/api/profile", response_model=ProfileResponse)
+def update_profile(
+    payload: ProfileUpdate,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    me_user = db.get(User, user["id"])
+    if not me_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    if "displayName" in data:
+        me_user.display_name = data["displayName"].strip() if data["displayName"] else None
+    if "bio" in data:
+        me_user.bio = data["bio"].strip() if data["bio"] else None
+    if "phone" in data:
+        me_user.phone = data["phone"].strip() if data["phone"] else None
+
+    student = db.get(Student, me_user.student_id) if me_user.student_id else None
+    if student:
+        if "name" in data:
+            student.name = data["name"].strip()
+        if "email" in data:
+            student.email = data["email"].strip()
+        if "grade" in data:
+            student.grade = data["grade"].strip()
+
+    db.commit()
+    db.refresh(me_user)
+    if student:
+        db.refresh(student)
+
+    return get_profile(user=user, db=db)
 
 
 @app.post("/api/auth/link-instructor", response_model=AuthTokenResponse)
@@ -257,7 +378,7 @@ def link_instructor(
 @app.get("/api/bootstrap")
 def bootstrap(user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     if user["role"] == "student":
-        ensure_student_linked(user)
+        ensure_student_linked(user, db)
         student_id = user.get("studentId")
         students = db.scalars(select(Student).where(Student.id == student_id)).all()
         submissions = db.scalars(
@@ -272,6 +393,7 @@ def bootstrap(user: dict = Depends(get_current_user), db: Session = Depends(get_
         activities = db.scalars(select(LearningActivity)).all()
 
     assignments = db.scalars(select(Assignment)).all()
+    materials = db.scalars(select(CourseMaterial)).all()
 
     history = (
         {user["studentId"]: UNDERSTANDING_HISTORY.get(user["studentId"], [])}
@@ -283,11 +405,190 @@ def bootstrap(user: dict = Depends(get_current_user), db: Session = Depends(get_
         "students": [student_to_dict(s) for s in students],
         "subjects": SUBJECTS,
         "assignments": [assignment_to_dict(a) for a in assignments],
+        "materials": [material_to_dict(m) for m in materials],
         "submissions": [submission_to_dict(s) for s in submissions],
         "learningActivities": [activity_to_dict(a) for a in activities],
         "understandingHistory": history,
         "curriculumPool": CURRICULUM_POOL,
     }
+
+
+@app.get("/api/materials", response_model=list[MaterialOut])
+def get_materials(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = db.scalars(select(CourseMaterial)).all()
+    return [MaterialOut(**material_to_dict(row)) for row in rows]
+
+
+@app.post("/api/materials", response_model=MaterialOut, status_code=201)
+def upload_material(
+    subjectId: str = Form(min_length=1, max_length=64),
+    title: str = Form(min_length=1, max_length=200),
+    file: UploadFile = File(...),
+    user: dict = Depends(require_instructor),
+    db: Session = Depends(get_db),
+):
+    me_user = db.get(User, user["id"])
+    if not me_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    stored_name = f"{uuid4().hex}_{file.filename or 'material'}"
+    stored_path = UPLOAD_DIR / stored_name
+    with stored_path.open("wb") as handle:
+        handle.write(file.file.read())
+
+    material = CourseMaterial(
+        id=f"mat-{uuid4().hex[:8]}",
+        subject_id=subjectId,
+        title=title,
+        original_filename=file.filename or "material",
+        stored_filename=stored_name,
+        uploaded_by_user_id=me_user.id,
+        created_at="2026-04-13",
+    )
+    db.add(material)
+    db.commit()
+    db.refresh(material)
+    return MaterialOut(**material_to_dict(material))
+
+
+@app.get("/api/community/posts", response_model=list[DiscussionPostOut])
+def list_posts(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = db.scalars(select(DiscussionPost).order_by(DiscussionPost.created_at.desc())).all()
+    return [DiscussionPostOut(**post_to_dict(row)) for row in rows]
+
+
+@app.post("/api/community/posts", response_model=DiscussionPostOut, status_code=201)
+def create_post(
+    payload: DiscussionPostCreate,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    me_user = db.get(User, user["id"])
+    if not me_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    post = DiscussionPost(
+        id=f"post-{uuid4().hex[:8]}",
+        subject_id=payload.subjectId,
+        assignment_id=payload.assignmentId,
+        author_user_id=me_user.id,
+        author_name=me_user.display_name or me_user.username,
+        title=payload.title,
+        content=payload.content,
+        created_at="2026-04-13",
+    )
+    db.add(post)
+    db.commit()
+    db.refresh(post)
+    return DiscussionPostOut(**post_to_dict(post))
+
+
+@app.get("/api/community/posts/{post_id}/replies", response_model=list[DiscussionReplyOut])
+def list_replies(post_id: str, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = db.scalars(select(DiscussionReply).where(DiscussionReply.post_id == post_id).order_by(DiscussionReply.created_at.asc())).all()
+    return [DiscussionReplyOut(**reply_to_dict(row)) for row in rows]
+
+
+@app.post("/api/community/posts/{post_id}/replies", response_model=DiscussionReplyOut, status_code=201)
+def create_reply(
+    post_id: str,
+    payload: DiscussionReplyCreate,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    post = db.get(DiscussionPost, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    me_user = db.get(User, user["id"])
+    if not me_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    reply = DiscussionReply(
+        id=f"reply-{uuid4().hex[:8]}",
+        post_id=post_id,
+        author_user_id=me_user.id,
+        author_name=me_user.display_name or me_user.username,
+        content=payload.content,
+        created_at="2026-04-13",
+    )
+    db.add(reply)
+    db.commit()
+    db.refresh(reply)
+    return DiscussionReplyOut(**reply_to_dict(reply))
+
+
+@app.get("/api/submissions", response_model=list[SubmissionOut])
+def list_submissions(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user["role"] == "student":
+        ensure_student_linked(user, db)
+        rows = db.scalars(select(Submission).where(Submission.student_id == user.get("studentId"))).all()
+    else:
+        rows = db.scalars(select(Submission)).all()
+    return [SubmissionOut(**submission_to_dict(row)) for row in rows]
+
+
+@app.post("/api/submissions", response_model=SubmissionOut, status_code=201)
+def create_submission(
+    payload: SubmissionCreate,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user["role"] == "student" and user.get("studentId") != payload.studentId:
+        raise HTTPException(status_code=403, detail="Cannot submit for another student")
+
+    existing = db.get(Submission, payload.id)
+    if existing:
+        raise HTTPException(status_code=409, detail="Submission already exists")
+
+    submission = Submission(
+        id=payload.id,
+        student_id=payload.studentId,
+        assignment_id=payload.assignmentId,
+        score=payload.score,
+        submitted_at=payload.submittedAt,
+        answer_text=payload.answerText,
+        attachment_name=payload.attachmentName,
+        attachment_path=payload.attachmentPath,
+        feedback=payload.feedback,
+    )
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+    return SubmissionOut(**submission_to_dict(submission))
+
+
+@app.put("/api/submissions/{submission_id}", response_model=SubmissionOut)
+def update_submission(
+    submission_id: str,
+    payload: SubmissionUpdate,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    submission = db.get(Submission, submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    if user["role"] == "student" and user.get("studentId") != submission.student_id:
+        raise HTTPException(status_code=403, detail="Cannot update another student's submission")
+
+    data = payload.model_dump(exclude_unset=True)
+    if "score" in data:
+        submission.score = data["score"]
+    if "submittedAt" in data:
+        submission.submitted_at = data["submittedAt"]
+    if "answerText" in data:
+        submission.answer_text = data["answerText"]
+    if "attachmentName" in data:
+        submission.attachment_name = data["attachmentName"]
+    if "attachmentPath" in data:
+        submission.attachment_path = data["attachmentPath"]
+    if "feedback" in data:
+        submission.feedback = data["feedback"]
+
+    db.commit()
+    db.refresh(submission)
+    return SubmissionOut(**submission_to_dict(submission))
 
 
 @app.get("/api/students", response_model=list[StudentOut])
@@ -297,7 +598,7 @@ def get_students(
     db: Session = Depends(get_db),
 ):
     if user["role"] == "student":
-        ensure_student_linked(user)
+        ensure_student_linked(user, db)
         own = db.get(Student, user.get("studentId"))
         if not own:
             return []
@@ -395,7 +696,7 @@ def get_assignments(
     db: Session = Depends(get_db),
 ):
     if user["role"] == "student":
-        ensure_student_linked(user)
+        ensure_student_linked(user, db)
 
     statement = select(Assignment)
     if search:
@@ -508,7 +809,7 @@ def get_assignment_submissions(
         raise HTTPException(status_code=404, detail="Assignment not found")
 
     if user["role"] == "student":
-        ensure_student_linked(user)
+        ensure_student_linked(user, db)
         rows = db.scalars(
             select(Submission).where(
                 Submission.assignment_id == assignment_id,

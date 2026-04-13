@@ -58,8 +58,8 @@ export function Header() {
           <div className="hidden sm:block">
             <p className="font-sans text-sm font-medium text-foreground">
               {role === 'instructor'
-                ? user?.username || '교강사'
-                : currentStudent?.name || user?.username || '학생'}
+                ? user?.displayName || user?.username || '교강사'
+                : currentStudent?.name || user?.displayName || user?.username || '학생'}
             </p>
             <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
               {role === 'instructor'

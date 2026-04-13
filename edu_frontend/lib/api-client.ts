@@ -2,16 +2,20 @@ import type {
   Assignment,
   CurriculumRecommendation,
   LearningActivity,
+  DiscussionPost,
+  DiscussionReply,
   Student,
   Subject,
   Submission,
   UnderstandingHistory,
+  ProgramMaterial,
 } from './types'
 
 export interface BootstrapData {
   students: Student[]
   subjects: Subject[]
   assignments: Assignment[]
+  materials?: ProgramMaterial[]
   submissions: Submission[]
   learningActivities: LearningActivity[]
   understandingHistory: Record<string, UnderstandingHistory[]>
@@ -23,6 +27,7 @@ export interface AuthLoginResponse {
   tokenType: string
   username: string
   role: string
+  displayName?: string | null
   studentId?: string | null
   instructorCode?: string | null
   linkedInstructorCode?: string | null
@@ -40,9 +45,65 @@ export interface AuthSignupRequest {
 export interface AuthMeResponse {
   username: string
   role: 'student' | 'instructor'
+  displayName?: string | null
   studentId?: string | null
   instructorCode?: string | null
   linkedInstructorCode?: string | null
+}
+
+export interface ProfileResponse {
+  username: string
+  role: 'student' | 'instructor'
+  displayName?: string | null
+  bio?: string | null
+  phone?: string | null
+  studentId?: string | null
+  instructorCode?: string | null
+  linkedInstructorCode?: string | null
+  name?: string | null
+  email?: string | null
+  grade?: string | null
+}
+
+export interface ProfileUpdateRequest {
+  displayName?: string | null
+  bio?: string | null
+  phone?: string | null
+  name?: string | null
+  email?: string | null
+  grade?: string | null
+}
+
+export interface SubmissionCreateRequest {
+  id: string
+  studentId: string
+  assignmentId: string
+  score: number
+  submittedAt: string
+  answerText?: string | null
+  attachmentName?: string | null
+  attachmentPath?: string | null
+  feedback?: string | null
+}
+
+export interface SubmissionUpdateRequest {
+  score?: number
+  submittedAt?: string
+  answerText?: string | null
+  attachmentName?: string | null
+  attachmentPath?: string | null
+  feedback?: string | null
+}
+
+export interface DiscussionPostCreateRequest {
+  subjectId?: string | null
+  assignmentId?: string | null
+  title: string
+  content: string
+}
+
+export interface DiscussionReplyCreateRequest {
+  content: string
 }
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
@@ -113,6 +174,159 @@ export async function fetchBootstrapData(): Promise<BootstrapData> {
   }
 
   return response.json() as Promise<BootstrapData>
+}
+
+export async function fetchMaterials(): Promise<ProgramMaterial[]> {
+  const response = await fetch(apiUrl('/api/materials'), {
+    cache: 'no-store',
+    headers: withAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to load materials: ${response.status}`)
+  }
+
+  return response.json() as Promise<ProgramMaterial[]>
+}
+
+export async function uploadMaterial(formData: FormData): Promise<ProgramMaterial> {
+  const response = await fetch(apiUrl('/api/materials'), {
+    method: 'POST',
+    headers: withAuthHeaders(),
+    body: formData,
+  })
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, `Failed to upload material: ${response.status}`))
+  }
+
+  return response.json() as Promise<ProgramMaterial>
+}
+
+export async function fetchDiscussionPosts(): Promise<DiscussionPost[]> {
+  const response = await fetch(apiUrl('/api/community/posts'), {
+    cache: 'no-store',
+    headers: withAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to load community posts: ${response.status}`)
+  }
+
+  return response.json() as Promise<DiscussionPost[]>
+}
+
+export async function createDiscussionPost(payload: DiscussionPostCreateRequest): Promise<DiscussionPost> {
+  const response = await fetch(apiUrl('/api/community/posts'), {
+    method: 'POST',
+    headers: withAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, `Failed to create post: ${response.status}`))
+  }
+
+  return response.json() as Promise<DiscussionPost>
+}
+
+export async function fetchDiscussionReplies(postId: string): Promise<DiscussionReply[]> {
+  const response = await fetch(apiUrl(`/api/community/posts/${postId}/replies`), {
+    cache: 'no-store',
+    headers: withAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to load replies: ${response.status}`)
+  }
+
+  return response.json() as Promise<DiscussionReply[]>
+}
+
+export async function createDiscussionReply(postId: string, payload: DiscussionReplyCreateRequest): Promise<DiscussionReply> {
+  const response = await fetch(apiUrl(`/api/community/posts/${postId}/replies`), {
+    method: 'POST',
+    headers: withAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, `Failed to create reply: ${response.status}`))
+  }
+
+  return response.json() as Promise<DiscussionReply>
+}
+
+export async function fetchSubmissions(): Promise<Submission[]> {
+  const response = await fetch(apiUrl('/api/submissions'), {
+    cache: 'no-store',
+    headers: withAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to load submissions: ${response.status}`)
+  }
+
+  return response.json() as Promise<Submission[]>
+}
+
+export async function createSubmission(payload: SubmissionCreateRequest): Promise<Submission> {
+  const response = await fetch(apiUrl('/api/submissions'), {
+    method: 'POST',
+    headers: withAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, `Failed to create submission: ${response.status}`))
+  }
+
+  return response.json() as Promise<Submission>
+}
+
+export async function updateSubmission(id: string, payload: SubmissionUpdateRequest): Promise<Submission> {
+  const response = await fetch(apiUrl(`/api/submissions/${id}`), {
+    method: 'PUT',
+    headers: withAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, `Failed to update submission: ${response.status}`))
+  }
+
+  return response.json() as Promise<Submission>
+}
+
+export async function fetchProfile(): Promise<ProfileResponse> {
+  const response = await fetch(apiUrl('/api/profile'), {
+    cache: 'no-store',
+    headers: withAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to load profile: ${response.status}`)
+  }
+
+  return response.json() as Promise<ProfileResponse>
+}
+
+export async function updateProfile(
+  payload: ProfileUpdateRequest
+): Promise<ProfileResponse> {
+  const response = await fetch(apiUrl('/api/profile'), {
+    method: 'PUT',
+    headers: withAuthHeaders({
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, `Failed to update profile: ${response.status}`))
+  }
+
+  return response.json() as Promise<ProfileResponse>
 }
 
 export async function fetchStudents(search?: string): Promise<Student[]> {

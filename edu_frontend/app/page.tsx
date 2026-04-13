@@ -20,6 +20,10 @@ import { StudentDashboard } from '@/components/student/student-dashboard'
 import { SubjectLearning } from '@/components/student/subject-learning'
 import { ProgressAnalysis } from '@/components/student/progress-analysis'
 import { CurriculumRecommendations } from '@/components/student/curriculum-recommendations'
+import { ProgramLibrary } from '@/components/program-library'
+import { ProfileSettings } from '@/components/profile-settings'
+import { CommunityBoard } from '@/components/community-board'
+import { SubmissionCenter } from '@/components/submission-center'
 
 function AuthScreen() {
   const { loginWithRole, signupWithRole, authLoading, authError } = useRole()
@@ -334,12 +338,20 @@ function DashboardContent() {
     switch (activeSection) {
       case 'dashboard':
         return <InstructorDashboard />
+      case 'programs':
+        return <ProgramLibrary />
       case 'students':
         return (
           <StudentList onViewDetail={() => setViewingStudentDetail(true)} />
         )
       case 'assignments':
         return <AssignmentManager />
+      case 'community':
+        return <CommunityBoard />
+      case 'submissions':
+        return <SubmissionCenter />
+      case 'profile':
+        return <ProfileSettings />
       default:
         return <InstructorDashboard />
     }
@@ -349,12 +361,20 @@ function DashboardContent() {
     switch (activeSection) {
       case 'dashboard':
         return <StudentDashboard />
+      case 'programs':
+        return <ProgramLibrary />
       case 'subjects':
         return <SubjectLearning />
       case 'progress':
         return <ProgressAnalysis />
       case 'recommendations':
         return <CurriculumRecommendations />
+      case 'community':
+        return <CommunityBoard />
+      case 'submissions':
+        return <SubmissionCenter />
+      case 'profile':
+        return <ProfileSettings />
       default:
         return <StudentDashboard />
     }

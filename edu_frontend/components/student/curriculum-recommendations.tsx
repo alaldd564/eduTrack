@@ -39,7 +39,7 @@ function getResourceIcon(type: CurriculumRecommendation['resourceType']) {
 
 export function CurriculumRecommendations() {
   const { subjects, curriculumPool } = useEduData()
-  const recommendations = generateRecommendations(subjects, curriculumPool, 10)
+  const recommendations = generateRecommendations(subjects, curriculumPool, 10).slice().reverse()
 
   const basicRecs = recommendations.filter((r) => r.difficulty === 'basic')
   const intermediateRecs = recommendations.filter(

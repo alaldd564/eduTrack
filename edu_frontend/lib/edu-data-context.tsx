@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -11,7 +12,10 @@ import {
 import type {
   Assignment,
   CurriculumRecommendation,
+  DiscussionPost,
+  DiscussionReply,
   LearningActivity,
+  ProgramMaterial,
   Student,
   Subject,
   Submission,
@@ -25,6 +29,8 @@ import {
   deleteStudent as deleteStudentRequest,
   fetchAssignments,
   fetchBootstrapData,
+  fetchDiscussionPosts,
+  fetchMaterials,
   fetchStudents,
   updateAssignment as updateAssignmentRequest,
   updateStudent as updateStudentRequest,
@@ -34,11 +40,13 @@ interface EduDataContextType {
   students: Student[]
   subjects: Subject[]
   assignments: Assignment[]
+  materials: ProgramMaterial[]
   filteredStudents: Student[]
   filteredAssignments: Assignment[]
   searchQuery: string
   setSearchQuery: (query: string) => void
   submissions: Submission[]
+  discussionPosts: DiscussionPost[]
   learningActivities: LearningActivity[]
   curriculumPool: CurriculumRecommendation[]
   isLoading: boolean
@@ -54,6 +62,8 @@ interface EduDataContextType {
   createAssignment: (payload: Assignment) => Promise<void>
   updateAssignment: (id: string, payload: Partial<Assignment>) => Promise<void>
   deleteAssignment: (id: string) => Promise<void>
+  refreshDiscussionPosts: () => Promise<void>
+  refreshMaterials: () => Promise<void>
 }
 
 const EduDataContext = createContext<EduDataContextType | undefined>(undefined)
@@ -63,7 +73,9 @@ export function EduDataProvider({ children }: { children: ReactNode }) {
   const [students, setStudents] = useState<Student[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [materials, setMaterials] = useState<ProgramMaterial[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [discussionPosts, setDiscussionPosts] = useState<DiscussionPost[]>([])
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([])
   const [filteredAssignments, setFilteredAssignments] = useState<Assignment[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -99,6 +111,7 @@ export function EduDataProvider({ children }: { children: ReactNode }) {
         setStudents(data.students)
         setSubjects(data.subjects)
         setAssignments(data.assignments)
+        setMaterials(data.materials || [])
         setFilteredStudents(data.students)
         setFilteredAssignments(data.assignments)
         setSubmissions(data.submissions)
@@ -168,11 +181,12 @@ export function EduDataProvider({ children }: { children: ReactNode }) {
     }
   }, [searchQuery, students, assignments, authLoading, authError, isAuthenticated])
 
-  const refreshBootstrapData = async () => {
+  const refreshBootstrapData = useCallback(async () => {
     const data = await fetchBootstrapData()
     setStudents(data.students)
     setSubjects(data.subjects)
     setAssignments(data.assignments)
+    setMaterials(data.materials || [])
     setSubmissions(data.submissions)
     setLearningActivities(data.learningActivities)
     setUnderstandingHistory(data.understandingHistory)
@@ -190,18 +204,34 @@ export function EduDataProvider({ children }: { children: ReactNode }) {
     ])
     setFilteredStudents(searchedStudents)
     setFilteredAssignments(searchedAssignments)
-  }
+  }, [searchQuery])
+
+  const refreshDiscussionPosts = useCallback(async () => {
+    const posts = await fetchDiscussionPosts()
+    setDiscussionPosts(posts)
+  }, [])
+
+  const refreshMaterials = useCallback(async () => {
+    try {
+      const fetchedMaterials = await fetchMaterials()
+      setMaterials(fetchedMaterials)
+    } catch {
+      setMaterials([])
+    }
+  }, [])
 
   const value = useMemo<EduDataContextType>(
     () => ({
       students,
       subjects,
       assignments,
+      materials,
       filteredStudents,
       filteredAssignments,
       searchQuery,
       setSearchQuery,
       submissions,
+      discussionPosts,
       learningActivities,
       curriculumPool,
       isLoading,
@@ -249,20 +279,27 @@ export function EduDataProvider({ children }: { children: ReactNode }) {
         await deleteAssignmentRequest(id)
         await refreshBootstrapData()
       },
+      refreshDiscussionPosts,
+      refreshMaterials,
     }),
     [
       students,
       subjects,
       assignments,
+      materials,
       filteredStudents,
       filteredAssignments,
       searchQuery,
       submissions,
+      discussionPosts,
       learningActivities,
       curriculumPool,
       isLoading,
       error,
       understandingHistory,
+      refreshBootstrapData,
+      refreshDiscussionPosts,
+      refreshMaterials,
     ]
   )
 

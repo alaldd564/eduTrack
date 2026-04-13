@@ -23,15 +23,23 @@ export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
 
   const instructorMenuItems = [
     { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
+    { id: 'programs', label: '프로그램', icon: BookOpen },
     { id: 'students', label: '학생 관리', icon: Users },
     { id: 'assignments', label: '과제 관리', icon: ClipboardList },
+    { id: 'submissions', label: '제출/피드백', icon: ClipboardList },
+    { id: 'community', label: '커뮤니티', icon: Lightbulb },
+    { id: 'profile', label: '개인 정보', icon: GraduationCap },
   ]
 
   const studentMenuItems = [
     { id: 'dashboard', label: '학습 현황', icon: LayoutDashboard },
+    { id: 'programs', label: '프로그램', icon: BookOpen },
     { id: 'subjects', label: '과목별 학습', icon: BookOpen },
     { id: 'progress', label: '진도 분석', icon: TrendingUp },
     { id: 'recommendations', label: '추천 학습', icon: Lightbulb },
+    { id: 'submissions', label: '과제 제출', icon: ClipboardList },
+    { id: 'community', label: '커뮤니티', icon: Lightbulb },
+    { id: 'profile', label: '개인 정보', icon: GraduationCap },
   ]
 
   const menuItems =

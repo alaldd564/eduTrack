@@ -35,7 +35,7 @@ export function RoleSwitcher() {
         )}
       >
         <LogOut className="h-3.5 w-3.5" />
-        {user?.username || 'Logout'}
+        {user?.displayName || user?.username || 'Logout'}
       </Button>
     </div>
   )
